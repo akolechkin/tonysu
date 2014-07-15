@@ -1,0 +1,109 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+  "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="ru">
+<head>
+<title>TONY.SU: StrictDeferredList</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<link rel="stylesheet" href="/static/css/style.css" type="text/css" media="screen">
+<link rel="stylesheet" href="/static/css/pygments.css" type="text/css" />
+
+<link href="http://feeds.feedburner.com/Tonysu" rel="alternate" title="TONY.SU" type="application/atom+xml" />
+<meta name="author" content="Anton Kolechkin (Tony)" />
+<meta name="distribution" content="global" />
+<meta name="description" content="Blog about python high-tech and software development." />
+<meta name="keywords" content="python twisted django highload software development blog" />
+<meta name="generator" content="Cyrax 0.1.4" />
+
+</head>
+
+<body>
+	<div id="container">
+		<div id="logo"><a href="/">TONY.SU</a></div>
+		<ul id="nav">
+			<li class="page_item page-item-1"><a href="/">Home</a></li>
+			<li class="page_item page-item-4"><a href="http://feeds.feedburner.com/Tonysu" title="RSS">RSS</a></li>
+		</ul>
+		<div class="clear"></div>
+	</div>
+	<div class="spacer"></div>
+	<div class="content">
+	
+<h1>StrictDeferredList</h1>
+<div class="meta">
+Опубликовано: 2010-03-20<br />
+
+
+Теги: <a href="/tag/python/">python</a>, <a href="/tag/twisted/">twisted</a>
+
+</div>
+
+<div class="postbody">
+<p>Основное что меня раздражало при использовании DeferredList это list со статусом выполнения каждого вложенного Deferred. При условии что 90% всех DeferredList которые я использовал по логике вещей должны валиться при первой ошибке. Из коробки twisted дает возможность убрать статус завершения каждого вложенного Deferred путем использования twisted.internet.defer.gatherResults, но такой вариант мне не нравился, получается очень некрасивая запись и лишний import.</p>
+<p>В итоге я сделал класс который имеет почти такой-же интерфейс как и у DeferredList, но автоматически закидывает в callback только результаты выполнения вложенных Deferred.</p>
+<div class="highlight"><pre><span class="kn">from</span> <span class="nn">twisted.internet.defer</span> <span class="kn">import</span> <span class="n">DeferredList</span><span class="p">,</span> <span class="n">_parseDListResult</span>
+
+<span class="k">class</span> <span class="nc">StrictDeferredList</span><span class="p">(</span><span class="n">DeferredList</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">deferredList</span><span class="p">,</span> <span class="n">fireOnOneCallback</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="n">DeferredList</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">deferredList</span><span class="p">,</span> <span class="n">fireOnOneCallback</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">callback</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">DeferredList</span><span class="o">.</span><span class="n">callback</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">_parseDListResult</span><span class="p">(</span><span class="n">result</span><span class="p">))</span>
+</pre></div>
+<p>использование:</p>
+<div class="highlight"><pre><span class="kn">from</span> <span class="nn">lib.twstd</span> <span class="kn">import</span> <span class="n">StrictDeferredList</span>
+<span class="n">StrictDeferredList</span><span class="p">(</span><span class="n">deferreds</span><span class="p">)</span>
+</pre></div>
+<p>против</p>
+<div class="highlight"><pre><span class="kn">from</span> <span class="nn">twisted.internet.defer</span> <span class="kn">import</span> <span class="n">DeferredList</span><span class="p">,</span> <span class="n">gatherResults</span>
+<span class="n">gatherResults</span><span class="p">(</span><span class="n">DeferredList</span><span class="p">(</span><span class="n">deferreds</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+</pre></div>
+<p>конечно можно было легко написать функцию-обертку которая использует gatherResults</p>
+<div class="highlight"><pre><span class="kn">from</span> <span class="nn">twisted.internet.defer</span> <span class="kn">import</span> <span class="n">DeferredList</span><span class="p">,</span> <span class="n">gatherResults</span>
+
+<span class="k">def</span> <span class="nf">strictDeferredList</span><span class="p">(</span><span class="n">deferreds</span><span class="p">,</span> <span class="n">fireOnOneCallback</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">gatherResults</span><span class="p">(</span><span class="n">DeferredList</span><span class="p">(</span><span class="n">deferreds</span><span class="p">,</span> <span class="n">fireOnOneCallback</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+</pre></div>
+<p>Однако меня смутил тот факт что сам gatherResults оборачивает DeferredList в еще один DeferredList, что немного сказывается на производительности и немного ухудшает дебаг.</p>
+
+</div>
+
+<div class="clear" style="margin-top:35px"></div>
+
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+
+  var disqus_developer = true;
+  (function() {
+   var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+   dsq.src = 'http://tonysu.disqus.com/embed.js';
+   (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript=tonysu">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">blog comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+	</div>
+	<div class="spacer"></div>
+		<div class="content">
+			<h3>Блог</h3>
+
+<p>
+Работает на движке <a rel="nofollow" href="http://hg.piranha.org.ua/cyrax">cyrax</a>. В качестве шаблона модифицированная тема "Clean Minimal" от <a rel="nofollow" href="http://www.themelab.com">themelab.com</a>.
+</p>
+		</div>
+	</div>
+
+<script type="text/javascript">
+var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+</script>
+<script type="text/javascript">
+try{
+var pageTracker = _gat._getTracker("UA-15241592-1");
+pageTracker._trackPageview();
+} catch(err) {}
+</script>
+
+</body>
+</html>

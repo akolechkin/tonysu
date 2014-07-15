@@ -1,0 +1,140 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+  "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="ru">
+<head>
+<title>TONY.SU: switch-case и if-elif-else в python</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<link rel="stylesheet" href="/static/css/style.css" type="text/css" media="screen">
+<link rel="stylesheet" href="/static/css/pygments.css" type="text/css" />
+
+<link href="http://feeds.feedburner.com/Tonysu" rel="alternate" title="TONY.SU" type="application/atom+xml" />
+<meta name="author" content="Anton Kolechkin (Tony)" />
+<meta name="distribution" content="global" />
+<meta name="description" content="Blog about python high-tech and software development." />
+<meta name="keywords" content="python twisted django highload software development blog" />
+<meta name="generator" content="Cyrax 0.1.4" />
+
+</head>
+
+<body>
+	<div id="container">
+		<div id="logo"><a href="/">TONY.SU</a></div>
+		<ul id="nav">
+			<li class="page_item page-item-1"><a href="/">Home</a></li>
+			<li class="page_item page-item-4"><a href="http://feeds.feedburner.com/Tonysu" title="RSS">RSS</a></li>
+		</ul>
+		<div class="clear"></div>
+	</div>
+	<div class="spacer"></div>
+	<div class="content">
+	
+<h1>switch-case и if-elif-else в&nbsp;python</h1>
+<div class="meta">
+Опубликовано: 2011-11-14<br />
+
+
+Теги: <a href="/tag/python/">python</a>
+
+</div>
+
+<div class="postbody">
+<p>Многие кидают камень в огород python за то, что там нет полноценного блока switch-case.
+Некоторые из огорода python кидают ответный камень говоря про замену в виду if-elif-else</p>
+<p>Я не одобряю не тех не других и матерю оба лагеря, ибо считаю что блоки подобные switch-case просто не нужны в большинстве случаев. И в свою очередь if-elif-else как эмуляция именно switch-case тоже бесполезна.</p>
+<p>Типичный блок кода с if-elif-else и эмуляцией switch-case:</p>
+<div class="highlight"><pre><span class="k">if</span> <span class="n">token</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+    <span class="n">do_something1</span><span class="p">()</span>
+<span class="k">elif</span> <span class="n">token</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+    <span class="n">do_something2</span><span class="p">()</span>
+<span class="k">elif</span> <span class="n">token</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+    <span class="n">do_something3</span><span class="p">()</span>
+<span class="k">elif</span> <span class="n">token</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
+    <span class="n">do_something4</span><span class="p">()</span>
+<span class="k">elif</span> <span class="n">token</span> <span class="o">==</span> <span class="mi">5</span><span class="p">:</span>
+    <span class="n">do_something5</span><span class="p">()</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&#39;unknown token </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">token</span><span class="p">)</span>
+</pre></div>
+<p>Это убого и некрасиво.</p>
+<p>Теперь красиво:</p>
+<div class="highlight"><pre><span class="n">tokens</span> <span class="o">=</span> <span class="p">(</span><span class="n">do_something1</span><span class="p">,</span> <span class="n">do_something2</span><span class="p">,</span> <span class="n">do_something3</span><span class="p">,</span>
+          <span class="n">do_something4</span><span class="p">,</span> <span class="n">do_something5</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">token</span> <span class="o">&lt;</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">token</span> <span class="o">&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">tokens</span><span class="p">):</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&#39;unkown token </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">token</span><span class="p">)</span>
+
+<span class="n">tokens</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">token</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">]()</span>
+</pre></div>
+<p>Аналогично с dict, в случае если token может быть произвольной строкой.
+Пример сложнее, если в do_something[0-9] передаются произвольные аргументы.</p>
+<div class="highlight"><pre><span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span> <span class="k">as</span> <span class="n">p</span>
+<span class="n">tokens</span> <span class="o">=</span> <span class="p">(</span><span class="n">p</span><span class="p">(</span><span class="n">do_something1</span><span class="p">,</span> <span class="mi">123</span><span class="p">),</span> <span class="n">p</span><span class="p">(</span><span class="n">do_something2</span><span class="p">,</span> <span class="n">mykwarg</span><span class="o">=</span><span class="mi">666</span><span class="p">),</span>
+          <span class="n">p</span><span class="p">(</span><span class="n">do_something3</span><span class="p">,</span> <span class="s">&#39;arg&#39;</span><span class="p">,</span> <span class="n">mykwarg</span><span class="o">=</span><span class="mi">777</span><span class="p">,</span> <span class="n">mykwarg2</span><span class="o">=</span><span class="mi">888</span><span class="p">),</span>
+          <span class="n">do_something4</span><span class="p">,</span> <span class="n">p</span><span class="p">(</span><span class="n">do_something5</span><span class="p">,</span> <span class="n">args</span><span class="p">),)</span>
+</pre></div>
+<p>Далее в точности как в примере выше.
+Можно обойтись и без functools, и сделать все руками, никаких проблем.</p>
+<p>Однако, if-elif-else может быть полезен, но только в том случае, когда он не используется как замена для swtich-case.
+Пример из cyrax:</p>
+<div class="highlight"><pre><span class="k">def</span> <span class="nf">parse_line</span><span class="p">(</span><span class="n">line</span><span class="p">):</span>
+    <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="o">=</span> <span class="n">strip</span><span class="p">(</span><span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;:&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+    <span class="n">s</span><span class="p">,</span> <span class="n">e</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">startswith</span><span class="p">,</span> <span class="n">value</span><span class="o">.</span><span class="n">endswith</span>
+    <span class="k">if</span> <span class="n">s</span><span class="p">(</span><span class="s">&#39;[&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">e</span><span class="p">(</span><span class="s">&#39;]&#39;</span><span class="p">):</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="n">strip</span><span class="p">(</span><span class="n">value</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;,&#39;</span><span class="p">))</span>
+    <span class="k">elif</span> <span class="n">s</span><span class="p">(</span><span class="s">&#39;{&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">e</span><span class="p">(</span><span class="s">&#39;}&#39;</span><span class="p">):</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">strip</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;:&#39;</span><span class="p">))</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">value</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;,&#39;</span><span class="p">))</span>
+    <span class="k">elif</span> <span class="n">s</span><span class="p">(</span><span class="s">&#39;date:&#39;</span><span class="p">):</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="n">parse_date</span><span class="p">(</span><span class="n">value</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="s">&#39;date:&#39;</span><span class="p">):]</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+    <span class="k">elif</span> <span class="n">key</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="o">==</span> <span class="s">&#39;date&#39;</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">parse_date</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="k">pass</span>
+    <span class="k">elif</span> <span class="n">value</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="s">&#39;true yes on&#39;</span><span class="o">.</span><span class="n">split</span><span class="p">():</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="bp">True</span>
+    <span class="k">elif</span> <span class="n">value</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="s">&#39;false no off&#39;</span><span class="o">.</span><span class="n">split</span><span class="p">():</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="bp">False</span>
+    <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span>
+</pre></div>
+
+</div>
+
+<div class="clear" style="margin-top:35px"></div>
+
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+
+  var disqus_developer = true;
+  (function() {
+   var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+   dsq.src = 'http://tonysu.disqus.com/embed.js';
+   (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript=tonysu">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">blog comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+	</div>
+	<div class="spacer"></div>
+		<div class="content">
+			<h3>Блог</h3>
+
+<p>
+Работает на движке <a rel="nofollow" href="http://hg.piranha.org.ua/cyrax">cyrax</a>. В качестве шаблона модифицированная тема "Clean Minimal" от <a rel="nofollow" href="http://www.themelab.com">themelab.com</a>.
+</p>
+		</div>
+	</div>
+
+<script type="text/javascript">
+var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+</script>
+<script type="text/javascript">
+try{
+var pageTracker = _gat._getTracker("UA-15241592-1");
+pageTracker._trackPageview();
+} catch(err) {}
+</script>
+
+</body>
+</html>

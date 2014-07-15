@@ -1,0 +1,96 @@
+/*  
+    Theme Name: Clean Minimal
+    Theme URI: http://www.themelab.com/free-wordpress-themes/
+Description: A black and white minimalistic theme.  Visit <a href="http://www.themelab.com">Theme Lab</a> for more free themes.
+Version: 1.0
+Author: Theme Lab
+Author URI: http://www.themelab.com/
+ */
+*{margin:0;padding:0;text-decoration:none;}
+body{background:#fff url(../img/bg.jpg);font-family:verdana, helvetica, sans-serif;font-size:12px;line-height:18px;color:#333;}
+a{color:#000;text-decoration:none;font-weight:bold;outline:none;}
+/* a:hover{color:#289bc6;} */
+
+#container{width:800px;background:#fff;margin:0 auto;padding:10px;}
+#logo{font-size:18px;line-height:37px;color:#222;height:37px;float:left;margin-left:5px;}
+#nav{float:right;margin-right:10px;}
+#nav li{display:inline;}
+#nav li a{padding:13px 60px 3px 3px;font-weight:normal;color:#000;background:#fff;text-transform:uppercase;line-height:40px;}
+#nav li a:hover, #nav li .active, #nav .current_page_item a, #nav li a.current_page_item{background:#000;color:#fff;}
+/* #nav li a:active{background:#289bc6;} */
+.clear{clear:both;}
+
+.spacer{height:20px;}
+.content{margin:0 auto;padding:10px;width:800px;background:#fff;}
+.sidebar{margin:0 auto;padding:10px;width:800px;background:#fff;}
+.sidebar h3{padding:5px 5px 4px 5px;background:#000;color:#fff;text-transform:uppercase;font-weight:normal;}
+#categories{border-bottom:1px solid #000;line-height:21px;}
+#categories li{display:inline;margin:0 5px 0 0;}
+#categories li a{padding:5px;color:#000;text-transform:uppercase;font-weight:normal;}
+#categories li a:hover, #categories li b{padding:5px 5px 4px 5px;background:#000;color:#fff;text-transform:uppercase;font-weight:normal;}
+/* #categories li a:active, #categories li b:hover, #categories li b:active{background:#289bc6;} */
+
+.post{margin:10px 0;}
+.post .left{width:70px;float:left;margin-top:1px;}
+.post .left h5{font-weight:normal;font-size:15px;height:15px;line-height:15px;}
+.post .left b{font-weight:normal;font-size:25px;line-height:25px;}
+.post .right h2 a{padding:3px;font-weight:normal;font-size:24px;line-height:24px;}
+.post .right h2 a:hover{text-decoration:underline;}
+.post .right{width:720px;float:right;}
+
+div.meta {
+margin: 10px;
+};
+
+#disqus_thread {
+	margin-top: 20px;
+};
+
+.sidebar ul{line-height:21px;}
+.sidebar ul li{display:inline;margin:0 5px 0 0;}
+.sidebar ul li a{padding:5px;color:#000;text-transform:uppercase;font-weight:normal;display:block;}
+.sidebar ul li a:hover{padding:5px;background:#000;color:#fff;text-transform:uppercase;font-weight:normal;}
+
+.footerul{line-height:21px;}
+.footerul li{display:inline;margin:0 5px 0 0;}
+.footerul li a{padding:5px;color:#000;text-transform:uppercase;font-weight:normal;display:block;}
+.footerul li a:hover, .footerul li b{padding:5px 5px 4px 5px;background:#000;color:#fff;text-transform:uppercase;font-weight:normal;}
+/* .footerul li a:active, .footerul li b:hover, .footerul li b:active{background:#289bc6;} */
+/* .footerul li b{border-bottom:1px solid #000;width:100%;}*/
+
+#fleft{width:48%;float:left;}
+#fright{width:48%;float:right;}
+
+#centerit{text-align:center;}
+
+.postbody{margin-top:10px;}
+.postbody ul {padding-top: 12px;padding-bottom: 12px;padding-left:40px;}
+
+.commentlist li{padding:10px;background:#eee;}
+.commentlist li.alt{background:#ddd;}
+.alignright {float:right;}
+.alignleft {float:left;}
+
+
+pre code {
+background:none repeat scroll 0 0 #EEEEEE;
+border-left:4px solid #CCCCCC;
+display:block;
+margin:0 auto 1em;
+overflow:auto;
+padding:5px 10px;
+width:90%;
+}
+
+.postbody p {
+
+	margin: 10px;
+
+}
+
+div.highlight {
+    margin-left: 25px;
+    padding-left: 15px;
+    border-left: 4px solid #CCCCCC;
+}
+

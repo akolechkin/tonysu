@@ -1,0 +1,194 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+  "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="ru">
+<head>
+<title>TONY.SU: Twisted + SqlAlchemy</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<link rel="stylesheet" href="/static/css/style.css" type="text/css" media="screen">
+<link rel="stylesheet" href="/static/css/pygments.css" type="text/css" />
+
+<link href="http://feeds.feedburner.com/Tonysu" rel="alternate" title="TONY.SU" type="application/atom+xml" />
+<meta name="author" content="Anton Kolechkin (Tony)" />
+<meta name="distribution" content="global" />
+<meta name="description" content="Blog about python high-tech and software development." />
+<meta name="keywords" content="python twisted django highload software development blog" />
+<meta name="generator" content="Cyrax 0.1.4" />
+
+</head>
+
+<body>
+	<div id="container">
+		<div id="logo"><a href="/">TONY.SU</a></div>
+		<ul id="nav">
+			<li class="page_item page-item-1"><a href="/">Home</a></li>
+			<li class="page_item page-item-4"><a href="http://feeds.feedburner.com/Tonysu" title="RSS">RSS</a></li>
+		</ul>
+		<div class="clear"></div>
+	</div>
+	<div class="spacer"></div>
+	<div class="content">
+	
+<h1>Twisted +&nbsp;SqlAlchemy</h1>
+<div class="meta">
+Опубликовано: 2011-09-04<br />
+
+
+Теги: <a href="/tag/python/">python</a>, <a href="/tag/twisted/">twisted</a>, <a href="/tag/sqlalchemy/">sqlalchemy</a>
+
+</div>
+
+<div class="postbody">
+<p>Так уж получается, что пишу посты исключительно по просьбе знакомых, либо когда меня много раз просят объяснить или показать одну и ту же вещь.
+На сей раз описываю вариант взаимодействия twisted и sqlalchemy. Сразу говорю что изначально авторство не моё, мне подсказали подобный вариант использования на IRC канале #python в сети freenode.net, к сожалению ника подсказавшего уже не помню.</p>
+<p>Для начала немного теории, как можно использовать реляционную базу данных асинхронно с применением twisted:</p>
+<blockquote>
+<ul class="simple">
+<li>Можно использовать <a class="reference external" href="http://twistedmatrix.com/documents/current/core/howto/rdbms.html">twisted.enterprise.adbapi</a> однако подружить с SqlAlchemy его достаточно сложно. Конечно, можно использовать только конструктор запросов из SqlAlchemy и запускать их напрямую в adbapi.</li>
+<li>Драйвер psycopg2 поддерживает <a class="reference external" href="http://initd.org/psycopg/docs/advanced.html#support-to-coroutine-libraries">неблокируемые запросы</a>.</li>
+<li>Когда-то существовал проект <a class="reference external" href="http://pypi.python.org/pypi/sAsync">SaSync</a> который на данный момент находится в неживом состоянии.</li>
+<li>Использовать свою обертку для SqlAlchemy и Twisted.</li>
+</ul>
+</blockquote>
+<p>Больше чем уверен, есть еще много других способов, но здесь я опишу последний.</p>
+<p>Перед тем как начать, я опишу значение декоратора toThread, использование которого будет ниже:</p>
+<div class="highlight"><pre><span class="kn">from</span> <span class="nn">twisted.internet</span> <span class="kn">import</span> <span class="n">threads</span>
+
+<span class="k">def</span> <span class="nf">toThread</span><span class="p">(</span><span class="n">f</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">threads</span><span class="o">.</span><span class="n">deferToThread</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">wrapper</span>
+</pre></div>
+<p>Декоратор оборачивает функцию в deferToThread и делает её неблокируемой, соответственно возвращает Deferred.</p>
+<p>Теперь сама функция-декоратор которая позволяет делать неблокируемые запросы к базе данных:</p>
+<div class="highlight"><pre><span class="kn">from</span> <span class="nn">sqlalchemy</span> <span class="kn">import</span> <span class="n">create_engine</span><span class="p">,</span> <span class="n">pool</span>
+<span class="kn">from</span> <span class="nn">sqlalchemy.orm</span> <span class="kn">import</span> <span class="n">sessionmaker</span>
+
+<span class="kn">from</span> <span class="nn">twisted_decorators</span> <span class="kn">import</span> <span class="n">toThread</span>
+
+<span class="k">class</span> <span class="nc">DBDefer</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dsn</span><span class="p">,</span> <span class="n">poolclass</span><span class="o">=</span><span class="n">pool</span><span class="o">.</span><span class="n">SingletonThreadPool</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">engine</span> <span class="o">=</span> <span class="n">create_engine</span><span class="p">(</span><span class="n">dsn</span><span class="p">,</span> <span class="n">poolclass</span><span class="o">=</span><span class="n">poolclass</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span><span class="p">):</span>
+        <span class="nd">@toThread</span>
+        <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+            <span class="n">session</span> <span class="o">=</span> <span class="n">sessionmaker</span><span class="p">(</span><span class="n">bind</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">engine</span><span class="p">)()</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">func</span><span class="p">(</span><span class="n">session</span><span class="o">=</span><span class="n">session</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="n">session</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
+                <span class="k">raise</span>
+            <span class="k">finally</span><span class="p">:</span>
+                <span class="n">session</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">wrapper</span>
+</pre></div>
+<p>Пример использования:</p>
+<div class="highlight"><pre><span class="kn">from</span> <span class="nn">twisted.web</span> <span class="kn">import</span> <span class="n">xmlrpc</span><span class="p">,</span> <span class="n">server</span>
+<span class="kn">from</span> <span class="nn">twisted.internet</span> <span class="kn">import</span> <span class="n">reactor</span>
+<span class="kn">from</span> <span class="nn">twisted.internet.defer</span> <span class="kn">import</span> <span class="n">Deferred</span>
+
+<span class="kn">import</span> <span class="nn">sqlalchemy</span> <span class="kn">as</span> <span class="nn">sa</span>
+
+<span class="kn">from</span> <span class="nn">sa_decorators</span> <span class="kn">import</span> <span class="n">DBDefer</span>
+
+<span class="n">dbdefer</span> <span class="o">=</span> <span class="n">DBDefer</span><span class="p">(</span><span class="s">&#39;postgres://postgres@localhost/mytestdb&#39;</span><span class="p">)</span>
+<span class="n">metadata</span> <span class="o">=</span> <span class="n">sa</span><span class="o">.</span><span class="n">MetaData</span><span class="p">(</span><span class="n">dbdefer</span><span class="o">.</span><span class="n">engine</span><span class="p">)</span>
+
+<span class="n">userTable</span> <span class="o">=</span> <span class="n">sa</span><span class="o">.</span><span class="n">Table</span><span class="p">(</span><span class="s">&#39;user&#39;</span><span class="p">,</span> <span class="n">metadata</span><span class="p">,</span>
+        <span class="n">sa</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s">&#39;user_id&#39;</span><span class="p">,</span> <span class="n">sa</span><span class="o">.</span><span class="n">Integer</span><span class="p">(</span><span class="mi">11</span><span class="p">),</span> <span class="n">primary_key</span><span class="o">=</span><span class="bp">True</span><span class="p">),</span>
+        <span class="n">sa</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s">&#39;login&#39;</span><span class="p">,</span> <span class="n">sa</span><span class="o">.</span><span class="n">String</span><span class="p">(</span><span class="mi">30</span><span class="p">),</span> <span class="n">unique</span><span class="o">=</span><span class="bp">True</span><span class="p">),</span>
+        <span class="n">sa</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s">&#39;first_name&#39;</span><span class="p">,</span> <span class="n">sa</span><span class="o">.</span><span class="n">String</span><span class="p">(</span><span class="mi">30</span><span class="p">),</span> <span class="n">nullable</span><span class="o">=</span><span class="bp">True</span><span class="p">),</span>
+        <span class="n">sa</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s">&#39;last_name&#39;</span><span class="p">,</span> <span class="n">sa</span><span class="o">.</span><span class="n">String</span><span class="p">(</span><span class="mi">30</span><span class="p">),</span> <span class="n">nullable</span><span class="o">=</span><span class="bp">True</span><span class="p">),</span>
+<span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">User</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">login</span><span class="p">,</span> <span class="n">first_name</span><span class="p">,</span> <span class="n">last_name</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">login</span> <span class="o">=</span> <span class="n">login</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">first_name</span> <span class="o">=</span> <span class="n">first_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_name</span> <span class="o">=</span> <span class="n">last_name</span>
+
+    <span class="k">def</span> <span class="nf">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">t</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">__dict__</span><span class="o">.</span><span class="n">iteritems</span><span class="p">()</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">t</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;_&#39;</span><span class="p">))</span>
+
+<span class="n">sa</span><span class="o">.</span><span class="n">orm</span><span class="o">.</span><span class="n">mapper</span><span class="p">(</span><span class="n">User</span><span class="p">,</span> <span class="n">userTable</span><span class="p">)</span>
+
+<span class="nd">@dbdefer</span>
+<span class="k">def</span> <span class="nf">createUser</span><span class="p">(</span><span class="n">login</span><span class="p">,</span> <span class="n">first_name</span><span class="p">,</span> <span class="n">last_name</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="n">user</span> <span class="o">=</span> <span class="n">User</span><span class="p">(</span><span class="n">login</span><span class="o">=</span><span class="n">login</span><span class="p">,</span> <span class="n">first_name</span><span class="o">=</span><span class="n">first_name</span><span class="p">,</span> <span class="n">last_name</span><span class="o">=</span><span class="n">last_name</span><span class="p">)</span>
+    <span class="n">session</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">user</span><span class="p">)</span>
+    <span class="n">session</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+    <span class="n">new_user</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">User</span><span class="p">)</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span><span class="n">user_id</span><span class="o">=</span><span class="n">user</span><span class="o">.</span><span class="n">user_id</span><span class="p">)</span><span class="o">.</span><span class="n">first</span><span class="p">()</span>
+    <span class="n">session</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">new_user</span>
+
+<span class="nd">@dbdefer</span>
+<span class="k">def</span> <span class="nf">getUser</span><span class="p">(</span><span class="n">user_id</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">User</span><span class="p">)</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span><span class="n">user_id</span><span class="o">=</span><span class="n">user_id</span><span class="p">)</span><span class="o">.</span><span class="n">first</span><span class="p">()</span>
+
+<span class="k">class</span> <span class="nc">UserService</span><span class="p">(</span><span class="n">xmlrpc</span><span class="o">.</span><span class="n">XMLRPC</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">xmlrpc_create_user</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">login</span><span class="p">,</span> <span class="n">first_name</span><span class="p">,</span> <span class="n">last_name</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">createUser</span><span class="p">(</span><span class="n">login</span><span class="p">,</span> <span class="n">first_name</span><span class="p">,</span> <span class="n">last_name</span><span class="p">)</span><span class="o">.</span><span class="n">addCallback</span><span class="p">(</span><span class="nb">dict</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">xmlrpc_get_user</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user_id</span><span class="p">):</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="n">Deferred</span><span class="p">()</span>
+        <span class="k">def</span> <span class="nf">_gotResult</span><span class="p">(</span><span class="n">_user</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">_user</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="n">d</span><span class="o">.</span><span class="n">errback</span><span class="p">(</span><span class="s">&#39;No such user&#39;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">d</span><span class="o">.</span><span class="n">callback</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="n">_user</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">_user</span>
+        <span class="n">getUser</span><span class="p">(</span><span class="n">user_id</span><span class="p">)</span><span class="o">.</span><span class="n">addCallbacks</span><span class="p">(</span><span class="n">_gotResult</span><span class="p">,</span> <span class="n">d</span><span class="o">.</span><span class="n">errback</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">d</span>
+
+<span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+    <span class="n">userService</span> <span class="o">=</span> <span class="n">UserService</span><span class="p">()</span>
+    <span class="n">reactor</span><span class="o">.</span><span class="n">listenTCP</span><span class="p">(</span><span class="mi">8000</span><span class="p">,</span> <span class="n">server</span><span class="o">.</span><span class="n">Site</span><span class="p">(</span><span class="n">userService</span><span class="p">))</span>
+    <span class="n">reactor</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</pre></div>
+<p>Исходные коды доступны в <a class="reference external" href="https://bitbucket.org/tony/twisted_and_sqlalchemy_demo">репозитарии bitbucket</a>.</p>
+
+</div>
+
+<div class="clear" style="margin-top:35px"></div>
+
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+
+  var disqus_developer = true;
+  (function() {
+   var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+   dsq.src = 'http://tonysu.disqus.com/embed.js';
+   (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript=tonysu">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">blog comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+	</div>
+	<div class="spacer"></div>
+		<div class="content">
+			<h3>Блог</h3>
+
+<p>
+Работает на движке <a rel="nofollow" href="http://hg.piranha.org.ua/cyrax">cyrax</a>. В качестве шаблона модифицированная тема "Clean Minimal" от <a rel="nofollow" href="http://www.themelab.com">themelab.com</a>.
+</p>
+		</div>
+	</div>
+
+<script type="text/javascript">
+var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+</script>
+<script type="text/javascript">
+try{
+var pageTracker = _gat._getTracker("UA-15241592-1");
+pageTracker._trackPageview();
+} catch(err) {}
+</script>
+
+</body>
+</html>

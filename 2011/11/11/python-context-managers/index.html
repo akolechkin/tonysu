@@ -1,0 +1,122 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+  "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="ru">
+<head>
+<title>TONY.SU: with - заблуждения об управлении контекстом в python</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<link rel="stylesheet" href="/static/css/style.css" type="text/css" media="screen">
+<link rel="stylesheet" href="/static/css/pygments.css" type="text/css" />
+
+<link href="http://feeds.feedburner.com/Tonysu" rel="alternate" title="TONY.SU" type="application/atom+xml" />
+<meta name="author" content="Anton Kolechkin (Tony)" />
+<meta name="distribution" content="global" />
+<meta name="description" content="Blog about python high-tech and software development." />
+<meta name="keywords" content="python twisted django highload software development blog" />
+<meta name="generator" content="Cyrax 0.1.4" />
+
+</head>
+
+<body>
+	<div id="container">
+		<div id="logo"><a href="/">TONY.SU</a></div>
+		<ul id="nav">
+			<li class="page_item page-item-1"><a href="/">Home</a></li>
+			<li class="page_item page-item-4"><a href="http://feeds.feedburner.com/Tonysu" title="RSS">RSS</a></li>
+		</ul>
+		<div class="clear"></div>
+	</div>
+	<div class="spacer"></div>
+	<div class="content">
+	
+<h1>with &mdash; заблуждения об управлении контекстом в&nbsp;python</h1>
+<div class="meta">
+Опубликовано: 2011-11-11<br />
+
+
+Теги: <a href="/tag/python/">python</a>, <a href="/tag/context-managers/">context-managers</a>, <a href="/tag/with/">with</a>
+
+</div>
+
+<div class="postbody">
+<p>Информация в этом посте быть может очевидна для многих, но все же может быть полезной тем, кто не уверен в знаниях об управлении контекстом.
+Про управление контекстом и with написано очень много и с очень давних времен. Однако, почему-то не все понимают казалось-бы очевидные вещи, например за последний месяц мне пришлось двум разным людям объяснить элементарные вещи о работе с with. Во многих примерах есть уопмянание класса с методами __enter__ и __exit__ например <a class="reference external" href="http://proft.me/2010/06/24/python-i-menedzher-konteksta/">первая ссылка в гугле</a>, или даже без примера, и так неплохо объяснено в <a class="reference external" href="http://docs.python.org/reference/datamodel.html#with-statement-context-managers">официальной документации</a>.</p>
+<p>Еще раз копирую пример здесь:</p>
+<div class="highlight"><pre><span class="k">class</span> <span class="nc">Logger</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">val</span>
+        <span class="k">print</span> <span class="s">&quot;</span><span class="si">%d</span><span class="s"> :: __init__&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">val</span>
+
+    <span class="k">def</span> <span class="nf">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">print</span> <span class="s">&quot;</span><span class="si">%d</span><span class="s"> :: __enter__&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">val</span>
+
+    <span class="k">def</span> <span class="nf">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exc_type</span><span class="p">,</span> <span class="n">exc_val</span><span class="p">,</span> <span class="n">exc_tb</span><span class="p">):</span>
+        <span class="k">print</span> <span class="s">&quot;</span><span class="si">%d</span><span class="s"> :: __exit__ &quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">val</span>
+
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="mi">5</span><span class="p">):</span>
+    <span class="k">with</span>  <span class="n">Logger</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">as</span> <span class="n">log</span><span class="p">:</span>
+        <span class="k">pass</span>
+</pre></div>
+<p>Почти ни у кого не возникает вопросов в какой момент срабатывает __enter__, а в какой __exit__ однако, далеко не все понимают что эти два метода НЕ являются деструкторами и конструкторами класса (в данном случае Logger), и соответственно не являются заменой методов __new__ и __del__, а значит оператор with может быть применен к экземпляру класса Logger более одного раза.</p>
+<p>Вот так:</p>
+<div class="highlight"><pre><span class="n">logger</span> <span class="o">=</span> <span class="n">Logger</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="mi">5</span><span class="p">):</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">val</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">with</span> <span class="n">logger</span> <span class="k">as</span> <span class="n">log</span><span class="p">:</span>
+        <span class="k">pass</span>
+</pre></div>
+<p>Есть еще одно заблуждение, и оно в принципе обосновано ибо тут уже начинают немного пудрить мозги примеры. Многие думают, что внутрь контекста идет обязательно инстанс того объекта, который был передан в with, то есть в переменной log обязательно будет инстанс класса Logger. Однако, это не так. В контекст попадает любой объект который возвращает __enter__, и в примере выше переменная log будет равна None, более подробный пример можете посмотреть по ссылке выше, хоть он и бесполезен в python 2.7.</p>
+<p>Далее, где можно применить управление контекстом кроме банального открытия файлов:</p>
+<blockquote>
+<ul class="simple">
+<li>Больше всего мне понравился пример с <a class="reference external" href="http://docs.python.org/dev/library/concurrent.futures.html#threadpoolexecutor-example">concurrent</a></li>
+<li>Отличный пример - <a class="reference external" href="https://docs.djangoproject.com/en/1.3/topics/db/transactions/#controlling-transaction-management-in-views">управление транзакциями в Django</a></li>
+<li><a class="reference external" href="https://docs.djangoproject.com/en/1.3/topics/testing/#django.test.TestCase.assertNumQueries">assertNumQueries в django.test</a></li>
+<li>Давно валялся в закладках <a class="reference external" href="http://dabeaz.blogspot.com/2010/02/context-manager-for-timing-benchmarks.html">пример отслеживания времени бенчмарков</a></li>
+<li><a class="reference external" href="http://softwaremaniacs.org/blog/2010/05/19/elementflow/">elementflow</a></li>
+</ul>
+</blockquote>
+<p>Примеров очень много, и применение зависит только от фантазии программиста.</p>
+
+</div>
+
+<div class="clear" style="margin-top:35px"></div>
+
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+
+  var disqus_developer = true;
+  (function() {
+   var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+   dsq.src = 'http://tonysu.disqus.com/embed.js';
+   (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript=tonysu">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">blog comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+	</div>
+	<div class="spacer"></div>
+		<div class="content">
+			<h3>Блог</h3>
+
+<p>
+Работает на движке <a rel="nofollow" href="http://hg.piranha.org.ua/cyrax">cyrax</a>. В качестве шаблона модифицированная тема "Clean Minimal" от <a rel="nofollow" href="http://www.themelab.com">themelab.com</a>.
+</p>
+		</div>
+	</div>
+
+<script type="text/javascript">
+var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+</script>
+<script type="text/javascript">
+try{
+var pageTracker = _gat._getTracker("UA-15241592-1");
+pageTracker._trackPageview();
+} catch(err) {}
+</script>
+
+</body>
+</html>

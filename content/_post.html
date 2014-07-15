@@ -1,0 +1,35 @@
+{% extends "_base.html" %}
+
+{% block content %}
+<h1>{{ entry.title|typogrify }}</h1>
+<div class="meta">
+Опубликовано: {{ entry.date.strftime('%Y-%m-%d') }}<br />
+
+{% if entry.tags %}
+Теги: {% for tag in entry.tags -%}
+<a href="{{ site.tag_cache.get(tag).get_absolute_url() }}">{{ tag }}</a>
+{%- if not loop.last %}, {% endif -%}
+{%- endfor %}
+{% endif %}
+</div>
+
+<div class="postbody">
+{{ entry.body }}
+</div>
+
+<div class="clear" style="margin-top:35px"></div>
+
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+
+  var disqus_developer = true;
+  (function() {
+   var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+   dsq.src = 'http://tonysu.disqus.com/embed.js';
+   (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript=tonysu">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">blog comments powered by <span class="logo-disqus">Disqus</span></a>
+
+{% endblock %}

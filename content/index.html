@@ -1,0 +1,22 @@
+{% meta %}
+  title: BLOG
+  author: tony
+{% endmeta %}
+
+{% block content %}
+
+  {% for post in site.posts %}
+
+    <div class="post">
+        <div class="left">
+            <h5>{{ post.date.strftime('%d %b') }}</h5>
+            <h5>&nbsp;{{ post.date.strftime('%Y') }}</h5>
+        </div>
+        <div class="right">
+            <h2><a href="{{ post.get_absolute_url() }}">{{ post.title }}</a></h2>
+        </div>
+        <div class="clear"></div>
+    </div>
+
+  {% endfor %}
+{% endblock %}

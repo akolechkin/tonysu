@@ -1,0 +1,188 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+  "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="ru">
+<head>
+<title>TONY.SU: Loxun - потоковая генерация xml в python</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<link rel="stylesheet" href="/static/css/style.css" type="text/css" media="screen">
+<link rel="stylesheet" href="/static/css/pygments.css" type="text/css" />
+
+<link href="http://feeds.feedburner.com/Tonysu" rel="alternate" title="TONY.SU" type="application/atom+xml" />
+<meta name="author" content="Anton Kolechkin (Tony)" />
+<meta name="distribution" content="global" />
+<meta name="description" content="Blog about python high-tech and software development." />
+<meta name="keywords" content="python twisted django highload software development blog" />
+<meta name="generator" content="Cyrax 0.1.4" />
+
+</head>
+
+<body>
+	<div id="container">
+		<div id="logo"><a href="/">TONY.SU</a></div>
+		<ul id="nav">
+			<li class="page_item page-item-1"><a href="/">Home</a></li>
+			<li class="page_item page-item-4"><a href="http://feeds.feedburner.com/Tonysu" title="RSS">RSS</a></li>
+		</ul>
+		<div class="clear"></div>
+	</div>
+	<div class="spacer"></div>
+	<div class="content">
+	
+<h1>Loxun &mdash; потоковая генерация xml в&nbsp;python</h1>
+<div class="meta">
+Опубликовано: 2011-11-06<br />
+
+
+Теги: <a href="/tag/python/">python</a>, <a href="/tag/xml/">xml</a>, <a href="/tag/loxun/">loxun</a>
+
+</div>
+
+<div class="postbody">
+<p><a class="reference external" href="https://github.com/roskakori/loxun">Loxun</a> - отличная замена для XMLGenerator из xml.sax. В чем его плюсы перед последним:</p>
+<p>SAX:</p>
+<div class="highlight"><pre><span class="n">xml</span> <span class="o">=</span> <span class="n">XMLGenerator</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+<span class="n">xml</span><span class="o">.</span><span class="n">startDocument</span><span class="p">()</span>
+<span class="n">xml</span><span class="o">.</span><span class="n">startElement</span><span class="p">(</span><span class="s">&#39;root&#39;</span><span class="p">)</span>
+<span class="n">xml</span><span class="o">.</span><span class="n">startElement</span><span class="p">(</span><span class="s">&#39;body&#39;</span><span class="p">)</span>
+<span class="n">xml</span><span class="o">.</span><span class="n">startElement</span><span class="p">(</span><span class="s">&#39;item&#39;</span><span class="p">)</span>
+<span class="n">xml</span><span class="o">.</span><span class="n">characters</span><span class="p">(</span><span class="s">&#39;some data&#39;</span><span class="p">)</span>
+<span class="n">xml</span><span class="o">.</span><span class="n">endElement</span><span class="p">(</span><span class="s">&#39;item&#39;</span><span class="p">)</span>
+<span class="n">xml</span><span class="o">.</span><span class="n">endElement</span><span class="p">(</span><span class="s">&#39;body&#39;</span><span class="p">)</span>
+<span class="n">xml</span><span class="o">.</span><span class="n">endElement</span><span class="p">(</span><span class="s">&#39;root&#39;</span><span class="p">)</span>
+<span class="n">xml</span><span class="o">.</span><span class="n">endDocument</span><span class="p">()</span>
+</pre></div>
+<p>Loxun:</p>
+<div class="highlight"><pre><span class="n">xml</span> <span class="o">=</span> <span class="n">XmlWriter</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+<span class="n">xml</span><span class="o">.</span><span class="n">startTag</span><span class="p">(</span><span class="s">&#39;root&#39;</span><span class="p">)</span>
+<span class="n">xml</span><span class="o">.</span><span class="n">startTag</span><span class="p">(</span><span class="s">&#39;body&#39;</span><span class="p">)</span>
+<span class="n">xml</span><span class="o">.</span><span class="n">startTag</span><span class="p">(</span><span class="s">&#39;item&#39;</span><span class="p">)</span>
+<span class="n">xml</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="s">&#39;somedata&#39;</span><span class="p">)</span>
+<span class="n">xml</span><span class="o">.</span><span class="n">endTag</span><span class="p">()</span>
+<span class="n">xml</span><span class="o">.</span><span class="n">endTag</span><span class="p">()</span>
+<span class="n">xml</span><span class="o">.</span><span class="n">endTag</span><span class="p">()</span>
+</pre></div>
+<p>Либо еще короче вместо трех вызовов endTag можно сделать xml.endTags() и все открытые элементы закроются автоматически.</p>
+<p>Пойдем далее, необходимо добавить элемент вида:</p>
+<div class="highlight"><pre><span class="nt">&lt;addr</span> <span class="na">host=</span><span class="s">&quot;127.0.0.1&quot;</span> <span class="na">port=</span><span class="s">&quot;8080&quot;</span> <span class="nt">/&gt;</span>
+</pre></div>
+<p>SAX:</p>
+<div class="highlight"><pre><span class="n">xml</span><span class="o">.</span><span class="n">startElement</span><span class="p">(</span><span class="s">&#39;addr&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s">&#39;host&#39;</span><span class="p">:</span> <span class="s">&#39;127.0.0.1&#39;</span><span class="p">,</span> <span class="s">&#39;port&#39;</span><span class="p">:</span> <span class="mi">8000</span><span class="p">})</span>
+<span class="n">xml</span><span class="o">.</span><span class="n">endElement</span><span class="p">(</span><span class="s">&#39;addr&#39;</span><span class="p">)</span>
+</pre></div>
+<p>Loxun:</p>
+<div class="highlight"><pre><span class="n">xml</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="s">&#39;addr&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s">&#39;host&#39;</span><span class="p">:</span> <span class="s">&#39;127.0.0.1&#39;</span><span class="p">,</span> <span class="s">&#39;port&#39;</span><span class="p">:</span> <span class="mi">8080</span><span class="p">})</span>
+</pre></div>
+<p>Работа с xmlns</p>
+<p>SAX:</p>
+<div class="highlight"><pre><span class="n">xml</span> <span class="o">=</span> <span class="n">XMLGenerator</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+<span class="n">xml</span><span class="o">.</span><span class="n">startDocument</span><span class="p">()</span>
+<span class="n">xml</span><span class="o">.</span><span class="n">startElement</span><span class="p">(</span><span class="s">&#39;root&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s">&#39;xmlns:g&#39;</span><span class="p">:</span> <span class="s">&#39;/some/url/to/xmlns&#39;</span><span class="p">})</span>
+<span class="n">xml</span><span class="o">.</span><span class="n">startElement</span><span class="p">(</span><span class="s">&#39;item&#39;</span><span class="p">)</span>
+<span class="n">xml</span><span class="o">.</span><span class="n">startElementNS</span><span class="p">(</span><span class="s">&#39;image&#39;</span><span class="p">,</span> <span class="s">&#39;g&#39;</span><span class="p">)</span>
+<span class="n">xml</span><span class="o">.</span><span class="n">characters</span><span class="p">(</span><span class="s">&#39;some data&#39;</span><span class="p">)</span>
+<span class="n">xml</span><span class="o">.</span><span class="n">endElementNS</span><span class="p">(</span><span class="s">&#39;image&#39;</span><span class="p">,</span> <span class="s">&#39;g&#39;</span><span class="p">)</span>
+<span class="c"># ....</span>
+</pre></div>
+<p>Loxun:</p>
+<div class="highlight"><pre><span class="n">xml</span> <span class="o">=</span> <span class="n">XmlWriter</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+<span class="n">xml</span><span class="o">.</span><span class="n">addNamespace</span><span class="p">(</span><span class="s">&#39;xmlns:g&#39;</span><span class="p">,</span> <span class="s">&#39;/some/url/to/xmlns&#39;</span><span class="p">)</span>
+<span class="n">xml</span><span class="o">.</span><span class="n">startTag</span><span class="p">(</span><span class="s">&#39;root&#39;</span><span class="p">)</span>
+<span class="n">xml</span><span class="o">.</span><span class="n">startTag</span><span class="p">(</span><span class="s">&#39;item&#39;</span><span class="p">)</span>
+<span class="n">xml</span><span class="o">.</span><span class="n">startTag</span><span class="p">(</span><span class="s">&#39;g:image&#39;</span><span class="p">)</span>
+<span class="n">xml</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="s">&#39;somedata&#39;</span><span class="p">)</span>
+<span class="n">xml</span><span class="o">.</span><span class="n">endTags</span><span class="p">()</span>
+</pre></div>
+<p>Преимущество такого подхода в том, что значительно упрощается автоматизация, ниже будет пример. Но есть и другие полезные вещи loxun которых нет в SAX:</p>
+<blockquote>
+<ul class="simple">
+<li>Никаких UnicodeDecodeError loxun конвертирует в unicode сам.</li>
+<li>XmlWriter сам по себе является context-manager'ом, а значит можно использовать with.</li>
+<li>Полезная функция сделанная мной - возможно использовать method chaining.</li>
+<li>pretty-print из коробки.</li>
+</ul>
+</blockquote>
+<p>И так, пример генерации google merchant feed.</p>
+<div class="highlight"><pre><span class="kn">from</span> <span class="nn">loxun</span> <span class="kn">import</span> <span class="n">ChainXmlWriter</span>
+
+<span class="n">SITE_TITLE</span> <span class="o">=</span> <span class="s">&#39;tony.su&#39;</span>
+<span class="n">SITE_LINK</span> <span class="o">=</span> <span class="s">&#39;tony.su&#39;</span>
+<span class="n">SITE_DESCRIPTION</span> <span class="o">=</span> <span class="s">&quot;tony&#39;s blog&quot;</span>
+
+<span class="k">def</span> <span class="nf">export_merchant_xml</span><span class="p">(</span><span class="nb">file</span><span class="p">,</span> <span class="n">products</span><span class="p">):</span>
+    <span class="k">with</span> <span class="n">ChainXmlWriter</span><span class="p">(</span><span class="nb">file</span><span class="p">)</span> <span class="k">as</span> <span class="n">xml</span><span class="p">:</span>
+        <span class="n">xml</span><span class="o">.</span><span class="n">addNamespace</span><span class="p">(</span><span class="s">&#39;g&#39;</span><span class="p">,</span> <span class="s">&#39;http://base.google.com/ns/1.0&#39;</span><span class="p">)</span>
+        <span class="n">xml</span><span class="o">.</span><span class="n">startTag</span><span class="p">(</span><span class="s">&#39;rss&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s">&#39;version&#39;</span><span class="p">:</span> <span class="s">&#39;2.0&#39;</span><span class="p">})</span><span class="o">.</span><span class="n">startTag</span><span class="p">(</span><span class="s">&#39;channel&#39;</span><span class="p">)</span>
+        <span class="n">xml</span><span class="o">.</span><span class="n">startTag</span><span class="p">(</span><span class="s">&#39;title&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="n">SITE_TITLE</span><span class="p">)</span><span class="o">.</span><span class="n">endTag</span><span class="p">()</span>
+        <span class="n">xml</span><span class="o">.</span><span class="n">startTag</span><span class="p">(</span><span class="s">&#39;link&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="n">SITE_LINK</span><span class="p">)</span><span class="o">.</span><span class="n">endTag</span><span class="p">()</span>
+        <span class="n">xml</span><span class="o">.</span><span class="n">startTag</span><span class="p">(</span><span class="s">&#39;description&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">cdata</span><span class="p">(</span><span class="n">SITE_DESCRIPTION</span><span class="p">)</span><span class="o">.</span><span class="n">endTag</span><span class="p">()</span>
+        <span class="n">xml_fields</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="p">(</span><span class="s">&#39;title&#39;</span><span class="p">,</span> <span class="s">&#39;title&#39;</span><span class="p">),</span>
+                    <span class="p">(</span><span class="s">&#39;link&#39;</span><span class="p">,</span> <span class="s">&#39;get_absolute_url&#39;</span><span class="p">),</span>
+                    <span class="p">(</span><span class="s">&#39;description&#39;</span><span class="p">,</span> <span class="s">&#39;descr_short&#39;</span><span class="p">),</span>
+                    <span class="p">(</span><span class="s">&#39;g:image_link&#39;</span><span class="p">,</span> <span class="s">&#39;get_pic_url&#39;</span><span class="p">),</span>
+                    <span class="p">(</span><span class="s">&#39;g:price&#39;</span><span class="p">,</span> <span class="s">&#39;price&#39;</span><span class="p">),</span>
+                    <span class="p">(</span><span class="s">&#39;g:condition&#39;</span><span class="p">,</span> <span class="s">&#39;condition&#39;</span><span class="p">),</span>
+                    <span class="p">(</span><span class="s">&#39;g:id&#39;</span><span class="p">,</span> <span class="s">&#39;get_merchant_id&#39;</span><span class="p">),</span>
+                <span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">product</span> <span class="ow">in</span> <span class="n">products</span><span class="p">:</span>
+            <span class="n">xml</span><span class="o">.</span><span class="n">startTag</span><span class="p">(</span><span class="s">&#39;item&#39;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">xml_field</span><span class="p">,</span> <span class="n">attr_name</span> <span class="ow">in</span> <span class="n">xml_fields</span><span class="p">:</span>
+                <span class="n">xml</span><span class="o">.</span><span class="n">startTag</span><span class="p">(</span><span class="n">xml_field</span><span class="p">)</span>
+                <span class="n">attr</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">product</span><span class="p">,</span> <span class="n">attr_name</span><span class="p">)</span>
+                <span class="n">xml</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="nb">unicode</span><span class="p">(</span><span class="n">attr</span> <span class="k">if</span> <span class="ow">not</span> <span class="nb">callable</span><span class="p">(</span><span class="n">attr</span><span class="p">)</span> <span class="k">else</span> <span class="n">attr</span><span class="p">()))</span>
+                <span class="n">xml</span><span class="o">.</span><span class="n">endTag</span><span class="p">()</span>
+            <span class="n">xml</span><span class="o">.</span><span class="n">endTag</span><span class="p">()</span>
+        <span class="n">xml</span><span class="o">.</span><span class="n">endTags</span><span class="p">()</span>
+
+<span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s">&#39;merchant.xml&#39;</span><span class="p">,</span> <span class="s">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">products</span> <span class="o">=</span> <span class="p">[]</span> <span class="c"># итератор с объектами загруженными из базы данных</span>
+        <span class="n">export_merchant_xml</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">products</span><span class="p">)</span>
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+</div>
+
+<div class="clear" style="margin-top:35px"></div>
+
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+
+  var disqus_developer = true;
+  (function() {
+   var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+   dsq.src = 'http://tonysu.disqus.com/embed.js';
+   (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript=tonysu">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">blog comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+	</div>
+	<div class="spacer"></div>
+		<div class="content">
+			<h3>Блог</h3>
+
+<p>
+Работает на движке <a rel="nofollow" href="http://hg.piranha.org.ua/cyrax">cyrax</a>. В качестве шаблона модифицированная тема "Clean Minimal" от <a rel="nofollow" href="http://www.themelab.com">themelab.com</a>.
+</p>
+		</div>
+	</div>
+
+<script type="text/javascript">
+var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+</script>
+<script type="text/javascript">
+try{
+var pageTracker = _gat._getTracker("UA-15241592-1");
+pageTracker._trackPageview();
+} catch(err) {}
+</script>
+
+</body>
+</html>

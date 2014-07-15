@@ -1,0 +1,101 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+  "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="ru">
+<head>
+<title>TONY.SU: Как поменять bind address в solr</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<link rel="stylesheet" href="/static/css/style.css" type="text/css" media="screen">
+<link rel="stylesheet" href="/static/css/pygments.css" type="text/css" />
+
+<link href="http://feeds.feedburner.com/Tonysu" rel="alternate" title="TONY.SU" type="application/atom+xml" />
+<meta name="author" content="Anton Kolechkin (Tony)" />
+<meta name="distribution" content="global" />
+<meta name="description" content="Blog about python high-tech and software development." />
+<meta name="keywords" content="python twisted django highload software development blog" />
+<meta name="generator" content="Cyrax 0.1.4" />
+
+</head>
+
+<body>
+	<div id="container">
+		<div id="logo"><a href="/">TONY.SU</a></div>
+		<ul id="nav">
+			<li class="page_item page-item-1"><a href="/">Home</a></li>
+			<li class="page_item page-item-4"><a href="http://feeds.feedburner.com/Tonysu" title="RSS">RSS</a></li>
+		</ul>
+		<div class="clear"></div>
+	</div>
+	<div class="spacer"></div>
+	<div class="content">
+	
+<h1>Как поменять bind address в&nbsp;solr</h1>
+<div class="meta">
+Опубликовано: 2011-01-22<br />
+
+
+Теги: <a href="/tag/java/">java</a>, <a href="/tag/solr/">solr</a>
+
+</div>
+
+<div class="postbody">
+<p>Для меня, как для человека не из мира Java, такой вопрос достоин отдельного поста. И так, как же сменить bind address в solr.</p>
+<p>Открываем /etc/jetty.xml, ищем ноду &amp;lt;Call name=&quot;addConnector&quot;&amp;gt;&amp;lt;/Call&amp;gt;, и добавляем в Arg &amp;gt; New такую строку:</p>
+<div class="highlight"><pre><span class="nt">&lt;Set</span> <span class="na">name=</span><span class="s">&quot;host&quot;</span><span class="nt">&gt;</span>
+    <span class="nt">&lt;SystemProperty</span> <span class="na">name=</span><span class="s">&quot;jetty.host&quot;</span> <span class="na">default=</span><span class="s">&quot;127.0.0.1&quot;</span><span class="nt">/&gt;</span>
+<span class="nt">&lt;/Set&gt;</span>
+</pre></div>
+<p>В итоге, вся нода Call у меня выглядит так:</p>
+<div class="highlight"><pre><span class="nt">&lt;Call</span> <span class="na">name=</span><span class="s">&quot;addConnector&quot;</span><span class="nt">&gt;</span>
+<span class="nt">&lt;Arg&gt;</span>
+    <span class="nt">&lt;New</span> <span class="na">class=</span><span class="s">&quot;org.mortbay.jetty.bio.SocketConnector&quot;</span><span class="nt">&gt;</span>
+        <span class="nt">&lt;Set</span> <span class="na">name=</span><span class="s">&quot;port&quot;</span><span class="nt">&gt;&lt;SystemProperty</span> <span class="na">name=</span><span class="s">&quot;jetty.port&quot;</span> <span class="na">default=</span><span class="s">&quot;8983&quot;</span><span class="nt">/&gt;&lt;/Set&gt;</span>
+        <span class="nt">&lt;Set</span> <span class="na">name=</span><span class="s">&quot;host&quot;</span><span class="nt">&gt;&lt;SystemProperty</span> <span class="na">name=</span><span class="s">&quot;jetty.host&quot;</span> <span class="na">default=</span><span class="s">&quot;127.0.0.1&quot;</span><span class="nt">/&gt;&lt;/Set&gt;</span>
+        <span class="nt">&lt;Set</span> <span class="na">name=</span><span class="s">&quot;maxIdleTime&quot;</span><span class="nt">&gt;</span>50000<span class="nt">&lt;/Set&gt;</span>
+        <span class="nt">&lt;Set</span> <span class="na">name=</span><span class="s">&quot;lowResourceMaxIdleTime&quot;</span><span class="nt">&gt;</span>1500<span class="nt">&lt;/Set&gt;</span>
+    <span class="nt">&lt;/New&gt;</span>
+<span class="nt">&lt;/Arg&gt;</span>
+<span class="nt">&lt;/Call&gt;</span>
+</pre></div>
+
+</div>
+
+<div class="clear" style="margin-top:35px"></div>
+
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+
+  var disqus_developer = true;
+  (function() {
+   var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+   dsq.src = 'http://tonysu.disqus.com/embed.js';
+   (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript=tonysu">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">blog comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+	</div>
+	<div class="spacer"></div>
+		<div class="content">
+			<h3>Блог</h3>
+
+<p>
+Работает на движке <a rel="nofollow" href="http://hg.piranha.org.ua/cyrax">cyrax</a>. В качестве шаблона модифицированная тема "Clean Minimal" от <a rel="nofollow" href="http://www.themelab.com">themelab.com</a>.
+</p>
+		</div>
+	</div>
+
+<script type="text/javascript">
+var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+</script>
+<script type="text/javascript">
+try{
+var pageTracker = _gat._getTracker("UA-15241592-1");
+pageTracker._trackPageview();
+} catch(err) {}
+</script>
+
+</body>
+</html>

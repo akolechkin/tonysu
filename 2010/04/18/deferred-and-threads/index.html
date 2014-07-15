@@ -1,0 +1,177 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+  "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="ru">
+<head>
+<title>TONY.SU: Deferred + Threads</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<link rel="stylesheet" href="/static/css/style.css" type="text/css" media="screen">
+<link rel="stylesheet" href="/static/css/pygments.css" type="text/css" />
+
+<link href="http://feeds.feedburner.com/Tonysu" rel="alternate" title="TONY.SU" type="application/atom+xml" />
+<meta name="author" content="Anton Kolechkin (Tony)" />
+<meta name="distribution" content="global" />
+<meta name="description" content="Blog about python high-tech and software development." />
+<meta name="keywords" content="python twisted django highload software development blog" />
+<meta name="generator" content="Cyrax 0.1.4" />
+
+</head>
+
+<body>
+	<div id="container">
+		<div id="logo"><a href="/">TONY.SU</a></div>
+		<ul id="nav">
+			<li class="page_item page-item-1"><a href="/">Home</a></li>
+			<li class="page_item page-item-4"><a href="http://feeds.feedburner.com/Tonysu" title="RSS">RSS</a></li>
+		</ul>
+		<div class="clear"></div>
+	</div>
+	<div class="spacer"></div>
+	<div class="content">
+	
+<h1>Deferred +&nbsp;Threads</h1>
+<div class="meta">
+Опубликовано: 2010-04-18<br />
+
+
+Теги: <a href="/tag/python/">python</a>, <a href="/tag/twisted/">twisted</a>
+
+</div>
+
+<div class="postbody">
+<p>В последнее время много знакомых пытаются писать какие-то сетевые вещи на twisted, и волей не волей все рано или поздно наталкиваются на такую вещь как Deferred. Deferred наверное самое сложное с чем стакливается новичек в twisted. Почти каждый человек открывая официальную документацию спрашивает себя (а то и меня) зачем же нужен Deferred если он сам по себе не делает код асинхронным. Вот здесь антипаттерн официальной документации twisted касаемо Deferred - попытка объяснить как работает Deferred совершенно забывая о потоках как таковых.</p>
+<p>Для примера рассмотрим реализацию сервиса-краулера предоставляющий доступ к своему API по протоколу xmlrpc.
+Практический функционал краулера глубоко эзотерический, и я взял его для примера только потому что это была одна из первых моих программ на twisted с использованием Deferred и потоков. Краулер написан специально для сайта ozon.ru и предоставляет по id товара урл до изображения с обложкой этого товара.</p>
+<p>Для сервера используется <a class="reference external" href="http://twistedmatrix.com/documents/current/web/howto/xmlrpc.html">реализация xmlrpc в twisted</a>.</p>
+<p>Отбросим возможность использования twisted.web.client и html-парсеров, так будет более очевидна разница между блокируемым и неблокируемым кодом.</p>
+<p>Начнем первый, очевидный вариант который думаю напишет каждый кто только начинает работать с twisted:</p>
+<div class="highlight"><pre><span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">from</span> <span class="nn">urllib</span> <span class="kn">import</span> <span class="n">urlopen</span>
+
+<span class="kn">from</span> <span class="nn">twisted.internet</span> <span class="kn">import</span> <span class="n">reactor</span>
+<span class="kn">from</span> <span class="nn">twisted.web</span> <span class="kn">import</span> <span class="n">xmlrpc</span><span class="p">,</span> <span class="n">server</span>
+<span class="c"># Объект регулярного выражения для поиска ссылки на обложку в пределах всей страницы.</span>
+<span class="n">cover_regex</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">r&#39;(/multimedia/audio_cd_covers/(?:\d+)\.jpg)&#39;</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">CoverCrawler</span><span class="p">(</span><span class="n">xmlrpc</span><span class="o">.</span><span class="n">XMLRPC</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">xmlrpc_get_cover</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">content_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Метод XMLRPC который позволяет вытащить одну обложку.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># получаем контент страницы средствами urllib</span>
+        <span class="n">content</span> <span class="o">=</span> <span class="n">urlopen</span><span class="p">(</span><span class="s">&#39;http://www.ozon.ru/context/detail/id/</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">content_id</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="c"># ищем по regexp урл изображения и отправляем клиенту в xmlrpc</span>
+        <span class="k">return</span> <span class="n">cover_regex</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">content</span><span class="p">)</span><span class="o">.</span><span class="n">group</span><span class="p">()</span>
+
+<span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+    <span class="n">crawler</span> <span class="o">=</span> <span class="n">CoverCrawler</span><span class="p">()</span>
+    <span class="n">reactor</span><span class="o">.</span><span class="n">listenTCP</span><span class="p">(</span><span class="mi">8080</span><span class="p">,</span> <span class="n">server</span><span class="o">.</span><span class="n">Site</span><span class="p">(</span><span class="n">crawler</span><span class="p">))</span>
+    <span class="n">reactor</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</pre></div>
+<p>Вот пример краулера который вытаскивает один урл обложки с сайта. И он даже работает. Однако с точки зрения потоков этот код написан неправильно, ибо вызов функции urllib блокирует выполнение приложения и краулер будет ждать когда каждая из обложек будет скачана с сайта, естественно за это время не будет скачана никакая другая обложка, и никакой другой запрос от клиентов xmlrpc не будет обработан. Почему так получается, каждое приложение twisted работает в режиме глобального селектора, тоесть каждый из запросов серверу, ответов клиенту, запросов на сторонний ресурс или обращение к файлу фактически проходят через глобальную очередь которая называется reactor. Фактически все объекты Deferred, все их callback'ки выполняются тоже в реакторе. Для выхода из этой ситуации в twisted есть функционал для запуска опрпделенных функций в отдельном потоке, например для этого есть функция deferToThread которая тоже возвращает Deferred в котором будет результат выполнения переданной в него функции. По хорошему любую функцию которая будет блокировать выполнение программы можно и нужно оборачивать в deferToThread. Перепишем скачивание страницы с использованием deferToThread.</p>
+<div class="highlight"><pre><span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">from</span> <span class="nn">urllib</span> <span class="kn">import</span> <span class="n">urlopen</span>
+
+<span class="kn">from</span> <span class="nn">twisted.internet</span> <span class="kn">import</span> <span class="n">reactor</span><span class="p">,</span> <span class="n">defer</span>
+<span class="kn">from</span> <span class="nn">twisted.internet.threads</span> <span class="kn">import</span> <span class="n">deferToThread</span>
+
+<span class="kn">from</span> <span class="nn">twisted.web</span> <span class="kn">import</span> <span class="n">xmlrpc</span><span class="p">,</span> <span class="n">server</span>
+
+<span class="n">cover_regex</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">r&#39;(/multimedia/audio_cd_covers/(?:\d+)\.jpg)&#39;</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">getUrlContent</span><span class="p">(</span><span class="n">url</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    создаем отдельную функцию которая всегда будет неблокируемо получать</span>
+<span class="sd">    контент страницы и возвращать Deferred с ним</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">deferToThread</span><span class="p">(</span><span class="k">lambda</span> <span class="p">:</span> <span class="n">urlopen</span><span class="p">(</span><span class="n">url</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+
+<span class="k">class</span> <span class="nc">CoverCrawler</span><span class="p">(</span><span class="n">xmlrpc</span><span class="o">.</span><span class="n">XMLRPC</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">xmlrpc_get_cover</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">content_id</span><span class="p">):</span>
+        <span class="n">imageUrlDeferred</span> <span class="o">=</span> <span class="n">defer</span><span class="o">.</span><span class="n">Deferred</span><span class="p">()</span>
+        <span class="k">def</span> <span class="nf">_gotContent</span><span class="p">(</span><span class="n">content</span><span class="p">):</span>
+            <span class="n">imageUrlDeferred</span><span class="o">.</span><span class="n">callback</span><span class="p">(</span><span class="n">cover_regex</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">content</span><span class="p">)</span><span class="o">.</span><span class="n">group</span><span class="p">())</span>
+        <span class="n">getUrlContent</span><span class="p">(</span><span class="s">&#39;http://www.ozon.ru/context/detail/id/</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">content_id</span>
+                     <span class="p">)</span><span class="o">.</span><span class="n">addCallbacks</span><span class="p">(</span><span class="n">_gotContent</span><span class="p">,</span> <span class="n">imageUrlDeferred</span><span class="o">.</span><span class="n">errback</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">imageUrlDeferred</span>
+
+<span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+    <span class="n">crawler</span> <span class="o">=</span> <span class="n">CoverCrawler</span><span class="p">()</span>
+    <span class="n">reactor</span><span class="o">.</span><span class="n">listenTCP</span><span class="p">(</span><span class="mi">8080</span><span class="p">,</span> <span class="n">server</span><span class="o">.</span><span class="n">Site</span><span class="p">(</span><span class="n">crawler</span><span class="p">))</span>
+    <span class="n">reactor</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</pre></div>
+<p>Код выше работает неблокируемо. Однако вспоминая мои первые эксперементы, вспоминаю и момент, когда в процессе анализа логов обнаружилось что большинство id запрашиваемых через xmlrpc совпадают между собой. Тогда встал вопрос о кэшировании обложек по id-товара.
+Далеее реализация класса CoverCrawler с учетом кэширования:</p>
+<div class="highlight"><pre><span class="k">class</span> <span class="nc">CoverCrawler</span><span class="p">(</span><span class="n">xmlrpc</span><span class="o">.</span><span class="n">XMLRPC</span><span class="p">):</span>
+    <span class="n">_linkCache</span> <span class="o">=</span> <span class="p">{}</span> <span class="c"># dict в котором храним id_товара =&gt; url обложки</span>
+
+    <span class="k">def</span> <span class="nf">xmlrpc_get_cover</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">content_id</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">content_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_linkCache</span><span class="p">:</span>
+            <span class="c"># Краткий reference:</span>
+            <span class="c"># twisted.internet.defer.succeed это шоткат, и код будет аналогичен</span>
+            <span class="c"># d = Deferred()</span>
+            <span class="c"># d.callback()</span>
+            <span class="c"># return d</span>
+            <span class="k">return</span> <span class="n">succeed</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_linkCache</span><span class="p">[</span><span class="n">content_id</span><span class="p">])</span>
+        <span class="n">imageUrlDeferred</span> <span class="o">=</span> <span class="n">Deferred</span><span class="p">()</span>
+
+        <span class="k">def</span> <span class="nf">_gotContent</span><span class="p">(</span><span class="n">content</span><span class="p">):</span>
+            <span class="n">image_link</span> <span class="o">=</span> <span class="n">cover_regex</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">content</span><span class="p">)</span><span class="o">.</span><span class="n">group</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_linkCache</span><span class="p">[</span><span class="n">content_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">image_link</span>
+            <span class="n">imageUrlDeferred</span><span class="o">.</span><span class="n">callback</span><span class="p">(</span><span class="n">image_link</span><span class="p">)</span>
+
+        <span class="n">getUrlContent</span><span class="p">(</span><span class="s">&#39;http://www.ozon.ru/context/detail/id/</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">content_id</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">addCallback</span><span class="p">(</span><span class="n">_gotContent</span><span class="p">,</span> <span class="n">imageUrlDeferred</span><span class="o">.</span><span class="n">errback</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">imageUrlDeferred</span>
+</pre></div>
+<p>Теперь один не совсем очевидный момент. В самом первом варианте метод xmlrpc_get_cover возвращал строку, во втором и третьем варианте Deferred, при том первый и второй вариант остаются рабочими. Как это происходит, существует функция twisted.internet.defer.maybeDeferred, которая конвертирует результат выполнения функции в Deferred, если он таковым не является.</p>
+
+</div>
+
+<div class="clear" style="margin-top:35px"></div>
+
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+
+  var disqus_developer = true;
+  (function() {
+   var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+   dsq.src = 'http://tonysu.disqus.com/embed.js';
+   (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript=tonysu">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">blog comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+	</div>
+	<div class="spacer"></div>
+		<div class="content">
+			<h3>Блог</h3>
+
+<p>
+Работает на движке <a rel="nofollow" href="http://hg.piranha.org.ua/cyrax">cyrax</a>. В качестве шаблона модифицированная тема "Clean Minimal" от <a rel="nofollow" href="http://www.themelab.com">themelab.com</a>.
+</p>
+		</div>
+	</div>
+
+<script type="text/javascript">
+var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+</script>
+<script type="text/javascript">
+try{
+var pageTracker = _gat._getTracker("UA-15241592-1");
+pageTracker._trackPageview();
+} catch(err) {}
+</script>
+
+</body>
+</html>
