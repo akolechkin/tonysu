@@ -1,0 +1,11 @@
+.block {
+    background-color: #eee;
+}
+
+.icon {
+    width: 32px;
+    height: 32px;
+}
+.left-menu ul {
+    list-style-type: none;
+}
